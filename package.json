@@ -1,6 +1,6 @@
 {
   "name": "ampost-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The ampost command: publish and schedule posts on Instagram, Facebook, Threads, X, YouTube, Pinterest, Bluesky, Telegram and Discord from your shell, scripts and AI agents.",
   "license": "MIT",
   "author": "Ampost (https://ampost.io)",
