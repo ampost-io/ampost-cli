@@ -248,7 +248,10 @@ export function postText(p: Post, heading?: string): string {
     pp.publishedUrl ?? (pp.error ? `${pp.error.code}: ${oneLine(pp.error.message, 60)}` : pp.nextAttemptAt ? `next try ${date(pp.nextAttemptAt)}` : ""),
     pp.accountId,
   ]);
-  return `${head}\n\n${table(["platform", "status", "url or error", "account"], rows)}`;
+  const notices = p.platformPosts
+    .filter((pp) => pp.notice)
+    .map((pp) => `${pp.platform}: still ${pp.status}. ${pp.notice!.message} (${pp.notice!.code})`);
+  return [`${head}\n\n${table(["platform", "status", "url or error", "account"], rows)}`, ...(notices.length ? ["", ...notices] : [])].join("\n");
 }
 
 function validationText(v: PostValidation): string {
@@ -346,10 +349,37 @@ export const postsDelete: Command = {
   summary: "Discard a post before it publishes: a draft, scheduled, queued or failed post",
   args: "<post-id>",
   positionals: { min: 1, max: 1 },
-  help: "The post stays readable with status `discarded`, and its uploaded media is deleted. A partly\npublished post stops retrying; what went out stays. A published post cannot be discarded (exit 7):\ntake it down in the dashboard or with the API's posts_unpublish.",
+  help: "The post stays readable with status `discarded`, and its uploaded media is deleted. A partly\npublished post stops retrying; what went out stays. A published post cannot be discarded (exit 7):\ntake it down with `ampost posts unpublish`.",
   async run(ctx, input) {
     const client = await ctx.client();
     const discarded = await client.posts.delete(id(input.positionals[0], "The post id"));
     return { data: discarded, text: postText(discarded, "Discarded") };
+  },
+};
+
+export const postsUnpublish: Command = {
+  name: "posts unpublish",
+  summary: "Delete a published post from the platforms",
+  args: "<post-id>",
+  positionals: { min: 1, max: 1 },
+  options: {
+    account: { type: "string", multiple: true, value: "ID", help: "Only this account (default: every account where it is published)" },
+  },
+  help: `Each account ends up \`deleted\`, or still \`published\` with a notice saying why: Instagram and
+TikTok have no delete API (delete it in their app), or the platform refused (for example Telegram's
+48-hour limit for bots). The post stays readable in Ampost; it becomes \`deleted\` once no account has it.
+Exit 10 if any account still has it. YouTube deletes count in the channel's daily budget of edits and deletes.
+
+Examples:
+  ampost posts unpublish <post-id>
+  ampost posts unpublish <post-id> --account <account-id> --json`,
+  async run(ctx, input) {
+    const postId = id(input.positionals[0], "The post id");
+    const accountIds = list(input, "account").map((a) => id(a, "--account"));
+    const client = await ctx.client();
+    const p = await client.posts.unpublish(postId, accountIds.length ? { accountIds } : {});
+    const targeted = p.platformPosts.filter((pp) => !accountIds.length || accountIds.includes(pp.accountId));
+    const left = targeted.some((pp) => pp.status === "published");
+    return { data: p, text: postText(p, "Unpublished"), exitCode: left ? EXIT.POST_FAILED : EXIT.OK };
   },
 };

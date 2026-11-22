@@ -4,7 +4,7 @@
 from your terminal, a shell script or an AI agent, through the [Ampost API](https://ampost.io/docs?ref=github).
 
 - Publish now, schedule, add to a posting queue or save a draft, with local images and videos
-- List, retry and delete posts; import a CSV of posts; read analytics; manage webhooks
+- List, retry, discard and unpublish posts; import a CSV of posts; read analytics; manage webhooks
 - `--json` on every command, one JSON document on stdout, and documented exit codes
 - Built on the [Node SDK](https://github.com/ampost-io/ampost-node), Node 18+
 
@@ -100,6 +100,7 @@ ampost posts list --platform threads --search "launch" --all
 ampost posts get <post-id>
 ampost posts retry <post-id> --wait                  # retry the failed platforms
 ampost posts delete <post-id>                         # discard a draft, scheduled, queued or failed post
+ampost posts unpublish <post-id>                      # delete a published post from the platforms
 ampost import-csv week.csv --dry-run && ampost import-csv week.csv --idempotency-key week-48
 ```
 
@@ -147,7 +148,7 @@ The exit code tells what happened without parsing anything:
 | 7 | The post's state does not allow it (409), for example deleting a published post |
 | 8 | Rate limit or plan quota (429), after automatic retries |
 | 9 | Ampost or the network is unavailable (5xx, timeout); retry later |
-| 10 | `--wait`: the post failed or published only partly |
+| 10 | `--wait`: the post failed or published only partly. `posts unpublish`: an account still has it (Instagram and TikTok have no delete API, or the platform refused) |
 
 A shell script that posts the day's release notes and stops on any failure:
 

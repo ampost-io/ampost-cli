@@ -276,4 +276,25 @@ describe("ampost posts", () => {
     const again = await cli(["posts", "delete", IDS.post], { fetch: api.fetch });
     assert.equal(again.code, EXIT.CONFLICT);
   });
+
+  it("unpublishes a post, and exits 10 while an account still has it", async () => {
+    const notice = { code: "UNPUBLISH_NOT_SUPPORTED", message: "This platform has no API to delete a published post.", retryable: false, platformCode: null, platformSubcode: null };
+    const api = fakeApi({
+      [`POST /api/posts/${IDS.post}/unpublish`]: [
+        reply(postFixture({ status: "deleted", platformPosts: [platformPost({ status: "deleted", publishedUrl: null })] })),
+        reply(postFixture({ status: "published", platformPosts: [platformPost({ platform: "instagram", notice })] })),
+      ],
+    });
+    const r = await cli(["posts", "unpublish", IDS.post, "--account", IDS.account], { fetch: api.fetch });
+    assert.equal(r.code, EXIT.OK);
+    assert.equal(api.calls[0]!.method, "POST");
+    assert.deepEqual(api.calls[0]!.body, { accountIds: [IDS.account] });
+    assert.match(r.stdout, /unpublished/);
+    const kept = await cli(["posts", "unpublish", IDS.post], { fetch: api.fetch });
+    assert.equal(kept.code, EXIT.POST_FAILED);
+    assert.deepEqual(api.calls[1]!.body, {});
+    assert.match(kept.stdout, /instagram: still published\. This platform has no API .* \(UNPUBLISH_NOT_SUPPORTED\)/);
+    const bad = await cli(["posts", "unpublish", "not-an-id"], { fetch: api.fetch });
+    assert.equal(bad.code, EXIT.USAGE);
+  });
 });

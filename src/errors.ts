@@ -39,7 +39,8 @@ export const EXIT = {
   RATE_LIMITED: 8,
   /** Ampost or the network failed (5xx, timeout, no connection). Safe to retry later. */
   UNAVAILABLE: 9,
-  /** With `--wait`: the post failed on every platform or on some of them (`failed`, `partial`). */
+  /** With `--wait`: the post failed on every platform or on some of them (`failed`, `partial`).
+   * `posts unpublish`: an account still has the post (no delete API, or the platform refused). */
   POST_FAILED: 10,
 } as const;
 
