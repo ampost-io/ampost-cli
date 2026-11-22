@@ -1,0 +1,57 @@
+{
+  "name": "ampost-cli",
+  "version": "0.1.0",
+  "description": "The ampost command: publish and schedule posts on Instagram, Facebook, Threads, X, YouTube, Pinterest, Bluesky, Telegram and Discord from your shell, scripts and AI agents.",
+  "license": "MIT",
+  "author": "Ampost (https://ampost.io)",
+  "homepage": "https://ampost.io/docs?ref=npm",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ampost-io/ampost-cli.git"
+  },
+  "bugs": "https://github.com/ampost-io/ampost-cli/issues",
+  "keywords": [
+    "ampost",
+    "cli",
+    "social-media",
+    "social-media-api",
+    "scheduler",
+    "instagram",
+    "threads",
+    "bluesky",
+    "youtube",
+    "ai-agents"
+  ],
+  "type": "module",
+  "bin": {
+    "ampost": "dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --import tsx --test test/*.test.ts",
+    "test:smoke": "node --import tsx --test test/smoke.ts",
+    "check": "npm run typecheck && npm test && npm run build",
+    "prepublishOnly": "node scripts/check-publishable.mjs && npm run build"
+  },
+  "dependencies": {
+    "ampost": "file:../ampost-node"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "devDependencies": {
+    "@types/node": "18.19.130",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}
