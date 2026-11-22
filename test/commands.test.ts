@@ -105,6 +105,30 @@ describe("accounts and platform sets", () => {
     const r = await cli(["accounts", "list"], { fetch: api.fetch });
     assert.match(r.stdout, /No accounts/);
   });
+
+  it("shows an account's health, and disconnects one", async () => {
+    const health = {
+      canPost: false,
+      needsReconnect: true,
+      issues: [{ code: "TOKEN_EXPIRED", message: "The token expired.", severity: "error" }],
+    };
+    const api = fakeApi({
+      [`GET /api/accounts/${IDS.account}`]: reply(accountFixture({ health })),
+      [`DELETE /api/accounts/${IDS.account}`]: reply(
+        accountFixture({ status: "revoked", providerRevoked: false, providerAccessSettings: "https://www.threads.net/settings", health }),
+      ),
+    });
+    const r = await cli(["accounts", "get", IDS.account], { fetch: api.fetch });
+    assert.equal(r.code, EXIT.OK, r.stderr);
+    assert.match(r.stdout, /Can post: +no/);
+    assert.match(r.stdout, /error: The token expired\. \(TOKEN_EXPIRED\)/);
+    const d = await cli(["accounts", "disconnect", IDS.account], { fetch: api.fetch });
+    assert.equal(d.code, EXIT.OK, d.stderr);
+    assert.equal(api.calls[1]!.method, "DELETE");
+    assert.match(d.stdout, /\(disconnected\)/);
+    assert.match(d.stdout, /Remove Ampost at https:\/\/www\.threads\.net\/settings/);
+    assert.equal((await cli(["accounts", "disconnect", "nope"], { fetch: api.fetch })).code, EXIT.USAGE);
+  });
 });
 
 describe("import-csv", () => {

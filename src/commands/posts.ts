@@ -73,7 +73,7 @@ Platform rules (lengths, media types, first comments): https://ampost.io/docs?re
 
 /** The `posts.create` body from the command line. Uploads local media. Exported for tests. */
 export async function buildPost(ctx: Context, input: Input): Promise<PostsCreateBody> {
-  const text = await readText(ctx, input);
+  const text = await readText(ctx, input, input.positionals[0], "an argument");
   const platforms = list(input, "platforms").map(checkPlatform);
   if (platforms.length === 0) throw new UsageError("Choose platforms with -p, e.g. -p bluesky,threads");
 
@@ -109,10 +109,11 @@ export async function buildPost(ctx: Context, input: Input): Promise<PostsCreate
   };
 }
 
-async function readText(ctx: Context, input: Input): Promise<string> {
-  const [positional] = input.positionals;
+/** The text from `given` (the argument, or `--text`), `--text-file`, or stdin for `-`. */
+async function readText(ctx: Context, input: Input, given: string | undefined, givenAs: string): Promise<string> {
+  const positional = given;
   const file = string(input, "text-file");
-  if (positional !== undefined && file !== undefined) throw new UsageError("Give the text as an argument or with --text-file, not both");
+  if (positional !== undefined && file !== undefined) throw new UsageError(`Give the text as ${givenAs} or with --text-file, not both`);
   if (positional === "-" || file === "-") {
     if (ctx.deps.io.stdinIsTTY) throw new UsageError("Reading the text from stdin, but stdin is a terminal: pipe the text in");
     return trimEnd(await ctx.deps.io.readStdin());
@@ -230,7 +231,8 @@ function postExitCode(p: Post): ExitCode {
   return p.status === "failed" || p.status === "partial" ? EXIT.POST_FAILED : EXIT.OK;
 }
 
-export function postText(p: Post, heading?: string): string {
+/** `refused` names what a notice means for the account (default: it is still in its status). */
+export function postText(p: Post, heading?: string, refused?: string): string {
   const head = fields([
     ["Post", heading ? `${p.id} (${heading.toLowerCase()})` : p.id],
     ["Status", p.status],
@@ -250,7 +252,7 @@ export function postText(p: Post, heading?: string): string {
   ]);
   const notices = p.platformPosts
     .filter((pp) => pp.notice)
-    .map((pp) => `${pp.platform}: still ${pp.status}. ${pp.notice!.message} (${pp.notice!.code})`);
+    .map((pp) => `${pp.platform}: ${refused ?? `still ${pp.status}`}. ${pp.notice!.message} (${pp.notice!.code})`);
   return [`${head}\n\n${table(["platform", "status", "url or error", "account"], rows)}`, ...(notices.length ? ["", ...notices] : [])].join("\n");
 }
 
@@ -321,6 +323,27 @@ export const postsGet: Command = {
   },
 };
 
+export const postsPublish: Command = {
+  name: "posts publish",
+  summary: "Publish a draft or scheduled post now",
+  args: "<post-id>",
+  positionals: { min: 1, max: 1 },
+  options: {
+    wait: { type: "boolean", short: "w", help: "Wait for the result (exit 10 if a platform failed)" },
+    "wait-timeout": { type: "string", value: "SECONDS", help: "How long --wait waits (default 600)" },
+    "idempotency-key": { type: "string", value: "KEY", help: "Repeat the command safely with the same key" },
+  },
+  async run(ctx, input) {
+    const postId = id(input.positionals[0], "The post id");
+    if (string(input, "wait-timeout") !== undefined && !flag(input, "wait")) throw new UsageError("--wait-timeout needs --wait");
+    const client = await ctx.client();
+    const key = string(input, "idempotency-key");
+    const published = await client.posts.publish(postId, key ? { idempotencyKey: key } : {});
+    if (!flag(input, "wait")) return { data: published, text: postText(published, "Publishing") };
+    return waitForPost(ctx, client, published, waitTimeout(input));
+  },
+};
+
 export const postsRetry: Command = {
   name: "posts retry",
   summary: "Publish again to the accounts that failed",
@@ -381,5 +404,37 @@ Examples:
     const targeted = p.platformPosts.filter((pp) => !accountIds.length || accountIds.includes(pp.accountId));
     const left = targeted.some((pp) => pp.status === "published");
     return { data: p, text: postText(p, "Unpublished"), exitCode: left ? EXIT.POST_FAILED : EXIT.OK };
+  },
+};
+
+export const postsEditPublished: Command = {
+  name: "posts edit-published",
+  summary: "Replace the text of a published post on the platforms",
+  args: "<post-id>",
+  positionals: { min: 1, max: 1 },
+  options: {
+    text: { type: "string", value: "TEXT", help: "The new text" },
+    "text-file": { type: "string", value: "PATH", help: "Read the new text from a file, or - for stdin" },
+    account: { type: "string", multiple: true, value: "ID", help: "Only this account (default: every account where it is published)" },
+  },
+  help: `Text only: media and links stay. Each account's new text is in \`platformPosts[].text\`. An account
+the platform refused keeps its text, with a notice saying why: Instagram, Threads, TikTok, Bluesky and
+X have no edit API (EDIT_NOT_SUPPORTED), nor do Facebook stories, and Facebook edits only posts Ampost
+published. Exit 10 if any account did not take the new text. YouTube edits count in the channel's
+daily budget of edits and deletes. To change a draft or scheduled post, create it again or use the API.
+
+Examples:
+  ampost posts edit-published <post-id> --text "Fixed the typo"
+  ampost posts edit-published <post-id> --text-file new.md --account <account-id> --json`,
+  async run(ctx, input) {
+    const postId = id(input.positionals[0], "The post id");
+    const accountIds = list(input, "account").map((a) => id(a, "--account"));
+    const text = await readText(ctx, input, string(input, "text"), "--text");
+    if (!text.trim()) throw new UsageError("Give the new text with --text or --text-file");
+    const client = await ctx.client();
+    const p = await client.posts.editPublished(postId, { text, ...(accountIds.length && { accountIds }) });
+    const targeted = p.platformPosts.filter((pp) => pp.status === "published" && (!accountIds.length || accountIds.includes(pp.accountId)));
+    const refused = targeted.some((pp) => pp.notice || pp.text !== text);
+    return { data: p, text: postText(p, "Edited", "not edited"), exitCode: refused ? EXIT.POST_FAILED : EXIT.OK };
   },
 };

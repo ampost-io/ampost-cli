@@ -297,4 +297,37 @@ describe("ampost posts", () => {
     const bad = await cli(["posts", "unpublish", "not-an-id"], { fetch: api.fetch });
     assert.equal(bad.code, EXIT.USAGE);
   });
+
+  it("publishes a draft now, with an idempotency key", async () => {
+    const api = fakeApi({ [`POST /api/posts/${IDS.post}/publish`]: reply(postFixture({ status: "posting" })) });
+    const r = await cli(["posts", "publish", IDS.post, "--idempotency-key", "go-1"], { fetch: api.fetch });
+    assert.equal(r.code, EXIT.OK, r.stderr);
+    assert.equal(api.calls[0]!.headers.get("idempotency-key"), "go-1");
+    assert.match(r.stdout, /\(publishing\)/);
+    assert.equal((await cli(["posts", "publish", IDS.post, "--wait-timeout", "5"], { fetch: api.fetch })).code, EXIT.USAGE);
+  });
+
+  it("edits a published post's text, and exits 10 while an account keeps its old text", async () => {
+    const notice = { code: "EDIT_NOT_SUPPORTED", message: "Threads has no API to edit a published post.", retryable: false, platformCode: null, platformSubcode: null };
+    const api = fakeApi({
+      [`POST /api/posts/${IDS.post}/edit-published`]: [
+        reply(postFixture({ platformPosts: [platformPost({ text: "Fixed" })] })),
+        reply(postFixture({ platformPosts: [platformPost({ text: "Fixed" }), platformPost({ platform: "threads", notice })] })),
+      ],
+    });
+    const r = await cli(["posts", "edit-published", IDS.post, "--text", "Fixed", "--account", IDS.account], { fetch: api.fetch });
+    assert.equal(r.code, EXIT.OK, r.stderr);
+    assert.equal(api.calls[0]!.method, "POST");
+    assert.deepEqual(api.calls[0]!.body, { text: "Fixed", accountIds: [IDS.account] });
+    assert.match(r.stdout, /\(edited\)/);
+    const kept = await cli(["posts", "edit-published", IDS.post, "--text", "Fixed"], { fetch: api.fetch });
+    assert.equal(kept.code, EXIT.POST_FAILED);
+    assert.deepEqual(api.calls[1]!.body, { text: "Fixed" });
+    assert.match(kept.stdout, /threads: not edited\. Threads has no API .* \(EDIT_NOT_SUPPORTED\)/);
+    const file = join(tempDir(), "new.txt");
+    writeFileSync(file, "From a file\n");
+    assert.equal((await cli(["posts", "edit-published", IDS.post, "--text", "x", "--text-file", file], { fetch: api.fetch })).code, EXIT.USAGE);
+    assert.equal((await cli(["posts", "edit-published", IDS.post], { fetch: api.fetch })).code, EXIT.USAGE);
+    assert.equal(api.calls.length, 2);
+  });
 });

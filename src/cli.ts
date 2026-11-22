@@ -249,7 +249,7 @@ export function exitCodesHelp(): string {
     "Exit codes:",
     "  0 ok    1 error    2 usage    3 no or bad API key    4 forbidden (scope, plan)    5 not found",
     "  6 invalid request, failed dry run or CSV rows    7 conflict    8 rate limited    9 API unavailable",
-    "  10 post failed or partial (--wait), or still on a platform after unpublish",
+    "  10 post failed or partial (--wait), or a platform kept the post (unpublish) or its text (edit-published)",
   ].join("\n");
 }
 

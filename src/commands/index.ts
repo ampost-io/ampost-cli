@@ -1,9 +1,9 @@
 import type { Command } from "../cli.js";
-import { accountsList, platformSetsList } from "./accounts.js";
+import { accountsDisconnect, accountsGet, accountsList, platformSetsList } from "./accounts.js";
 import { analyticsFollowers, analyticsOverview, analyticsPosts } from "./analytics.js";
 import { login, logout, status } from "./auth.js";
 import { importCsv } from "./import-csv.js";
-import { post, postsDelete, postsGet, postsList, postsRetry, postsUnpublish } from "./posts.js";
+import { post, postsDelete, postsEditPublished, postsGet, postsList, postsPublish, postsRetry, postsUnpublish } from "./posts.js";
 import {
   webhooksCreate,
   webhooksDeliveries,
@@ -20,13 +20,17 @@ export const COMMANDS: Command[] = [
   logout,
   status,
   accountsList,
+  accountsGet,
+  accountsDisconnect,
   platformSetsList,
   post,
   postsList,
   postsGet,
+  postsPublish,
   postsRetry,
   postsDelete,
   postsUnpublish,
+  postsEditPublished,
   importCsv,
   analyticsOverview,
   analyticsPosts,
@@ -44,7 +48,7 @@ export const COMMANDS: Command[] = [
 export const GROUPS: Record<string, string> = {
   accounts: "connected social accounts",
   "platform-sets": "platform sets (one account per platform each)",
-  posts: "list, read, retry, discard and unpublish posts (create them with `ampost post`)",
+  posts: "list, read, publish, retry, discard, unpublish and edit published posts (create them with `ampost post`)",
   analytics: "post metrics, account totals and followers",
   webhooks: "send post and account events to your URL",
 };

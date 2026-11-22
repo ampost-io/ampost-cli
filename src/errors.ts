@@ -40,7 +40,8 @@ export const EXIT = {
   /** Ampost or the network failed (5xx, timeout, no connection). Safe to retry later. */
   UNAVAILABLE: 9,
   /** With `--wait`: the post failed on every platform or on some of them (`failed`, `partial`).
-   * `posts unpublish`: an account still has the post (no delete API, or the platform refused). */
+   * `posts unpublish`: an account still has the post (no delete API, or the platform refused).
+   * `posts edit-published`: an account did not take the new text. */
   POST_FAILED: 10,
 } as const;
 

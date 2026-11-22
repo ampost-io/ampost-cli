@@ -4,7 +4,7 @@
 from your terminal, a shell script or an AI agent, through the [Ampost API](https://ampost.io/docs?ref=github).
 
 - Publish now, schedule, add to a posting queue or save a draft, with local images and videos
-- List, retry, discard and unpublish posts; import a CSV of posts; read analytics; manage webhooks
+- List, publish, retry, discard, unpublish and edit published posts; check or disconnect accounts; import a CSV of posts; read analytics; manage webhooks
 - `--json` on every command, one JSON document on stdout, and documented exit codes
 - Built on the [Node SDK](https://github.com/ampost-io/ampost-node), Node 18+
 
@@ -98,10 +98,14 @@ ampost post "Launch day" -p bluesky,threads --wait
 ampost posts list --status failed
 ampost posts list --platform threads --search "launch" --all
 ampost posts get <post-id>
+ampost posts publish <post-id> --wait                # publish a draft or scheduled post now
 ampost posts retry <post-id> --wait                  # retry the failed platforms
 ampost posts delete <post-id>                         # discard a draft, scheduled, queued or failed post
 ampost posts unpublish <post-id>                      # delete a published post from the platforms
+ampost posts edit-published <post-id> --text "Fixed"  # replace a published post's text on the platforms
 ampost import-csv week.csv --dry-run && ampost import-csv week.csv --idempotency-key week-48
+ampost accounts get <account-id>                      # can it post, and why not
+ampost accounts disconnect <account-id>               # revoke Ampost's access; reconnect in the dashboard
 ```
 
 Lists show 20 items; use `--limit`, `--offset` or `--all`. The CSV columns are those of the
@@ -148,7 +152,7 @@ The exit code tells what happened without parsing anything:
 | 7 | The post's state does not allow it (409), for example deleting a published post |
 | 8 | Rate limit or plan quota (429), after automatic retries |
 | 9 | Ampost or the network is unavailable (5xx, timeout); retry later |
-| 10 | `--wait`: the post failed or published only partly. `posts unpublish`: an account still has it (Instagram and TikTok have no delete API, or the platform refused) |
+| 10 | `--wait`: the post failed or published only partly. `posts unpublish`: an account still has it (Instagram and TikTok have no delete API, or the platform refused). `posts edit-published`: an account kept its old text (Instagram, Threads, TikTok, Bluesky and X have no edit API, or the platform refused) |
 
 A shell script that posts the day's release notes and stops on any failure:
 
