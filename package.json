@@ -43,7 +43,7 @@
     "prepublishOnly": "node scripts/check-publishable.mjs && npm run build"
   },
   "dependencies": {
-    "ampost": "file:../ampost-node"
+    "ampost": "^0.1.0"
   },
   "publishConfig": {
     "access": "public",
