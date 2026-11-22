@@ -170,7 +170,7 @@ Branching on the outcome:
 ampost post "$TEXT" -p bluesky --dry-run --json > check.json
 case $? in
   0) ampost post "$TEXT" -p bluesky ;;
-  6) jq -r '.errors[].message' check.json ;;
+  6) jq -r '(.errors[], .targets[].errors[]) | .message' check.json ;;  # post-wide, then per platform
   3) echo "Set AMPOST_API_KEY" >&2 ;;
 esac
 ```
