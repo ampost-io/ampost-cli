@@ -206,7 +206,7 @@ node dist/bin.js --help
 ## Links
 
 - [API docs](https://ampost.io/docs?ref=github) and [llms.txt](https://ampost.io/llms.txt?ref=github)
-- [Node SDK](https://github.com/ampost-io/ampost-node) and [Python SDK](https://github.com/ampost-io/ampost-python)
+- [Node SDK](https://github.com/ampost-io/ampost-node), [Python SDK](https://github.com/ampost-io/ampost-python) and [Ruby SDK](https://github.com/ampost-io/ampost-ruby)
 - [MCP server](https://ampost.io/docs/mcp?ref=github)
 - [Pricing](https://ampost.io/pricing?ref=github)
 
